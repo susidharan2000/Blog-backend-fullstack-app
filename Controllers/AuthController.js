@@ -45,7 +45,7 @@ export const login = async (req, res, next) => {
     if (!userDetail || !userPassword) {
       return next(errorHandler(400, "Invalid Credentials"));
     }
-    const token = jwt.sign({ id: userDetail._id }, process.env.JWT_SECRET_KEY);
+    const token = jwt.sign({ id: userDetail._id,isAdmin:userDetail.isAdmin }, process.env.JWT_SECRET_KEY);
 
     const { password: passKey, ...rest } = userDetail._doc; //to hide password from DB
 
@@ -58,54 +58,51 @@ export const login = async (req, res, next) => {
 };
 
 //Google authentication
-
 export const google = async (req, res, next) => {
-    const { email, name, profilePic } = req.body;
-    try {
-      const user = await User.findOne({ email });
-      if (user) {
-        const token = jwt.sign(
-          { id: user._id },
-          process.env.JWT_SECRET_KEY
-        );
-  
-        const { password: passkey, ...rest } = user._doc;
-  
-        res
-          .status(200)
-          .cookie("access_Token", token, {
-            httpOnly: true,
-          })
-          .json({ message: "User LoggedIn Successfully", rest });
-      } else {
-        const generatePassword =
-          Math.random().toString(36).slice(-8) +
-          Math.random().toString(36).slice(-8);
-        const hashedPassword = bcrypt.hashSync(generatePassword, 10);
-        const newUser = new User({
-          username:
-            name.toLowerCase().split(" ").join("") +
-            Math.random().toString(9).slice(-4),
-          email,
-          password: hashedPassword,
-          profilePicture: profilePic,
-        });
-        await newUser.save();
-        const token = jwt.sign(
-          { id: userDetail._id },
-          process.env.JWT_SECRET_KEY
-        );
-  
-        const { password: passkey, ...rest } = userDetail._doc;
-  
-        res
-          .status(200)
-          /* .cookie("access_Token", token, {
-            httpOnly: true,
-          }) */
-          .json({ message: "User LoggedIn Successfully", rest,token });
-      }
-    } catch (error) {
-      next(error);
+  const { email, name, profilePic } = req.body;
+  console.log(profilePic);
+
+  try {
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // User found, generate JWT token
+      const token = jwt.sign({ id: user._id,isAdmin:user.isAdmin }, process.env.JWT_SECRET_KEY);
+      
+      // Remove sensitive data from user object
+      const { password: passkey, ...rest } = user._doc;
+      
+      // Respond with token and user data
+      return res.status(200).json({ message: "User LoggedIn Successfully", rest, token });
+    } else {
+      // User not found, create a new user
+      const generatePassword =
+        Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-8);
+      const hashedPassword = bcrypt.hashSync(generatePassword, 10);
+
+      const newUser = new User({
+        username:
+          name.toLowerCase().split(" ").join("") +
+          Math.random().toString(9).slice(-4),
+        email,
+        password: hashedPassword,
+        profilePic: profilePic,
+      });
+
+      user = await newUser.save(); // Save new user
+
+      // Generate JWT token for new user
+      const token = jwt.sign({ id: user._id,isAdmin:newUser.isAdmin }, process.env.JWT_SECRET_KEY);
+
+      // Remove sensitive data from user object
+      const { password: passkey, ...rest } = user._doc;
+
+      // Respond with token and user data
+      return res.status(200).json({ message: "User LoggedIn Successfully", rest, token });
     }
-  };
+  } catch (error) {
+    next(error); // Forward error to error handling middleware
+  }
+};
+

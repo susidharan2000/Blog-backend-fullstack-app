@@ -3,11 +3,14 @@ import cors from "cors";
 import dotenv from "dotenv";
 import ConnectDB from "./Database/Config.js";
 import AuthRouter from "./Routers/AuthRouter.js";
+import UserRouter from "./Routers/UserRouter.js";
+import PostRouter from "./Routers/PostRouter.js"
+import cookieParser from "cookie-parser";
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+app.use(cookieParser());
 //error handler
 app.use((err,req,res,next)=>{
     const statusCode = err.statusCode || 500;
@@ -31,6 +34,8 @@ app.get("/",(req,res)=>{
 //API Route
 
 app.use("/api/auth",AuthRouter);
+app.use("/api/user",UserRouter);
+app.use("/api/post",PostRouter);
 
 app.listen(port,()=>{
     console.log("App is running",port);
